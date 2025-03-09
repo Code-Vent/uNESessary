@@ -1,5 +1,5 @@
 //
-// Created by Tao on 2/28/2025.
+// Created by Hamid on 2/28/2025.
 //
 
 #ifndef NES_PERIPHERAL_H
