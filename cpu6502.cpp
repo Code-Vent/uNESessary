@@ -331,7 +331,7 @@ void CPU6502::ANC() {
 void CPU6502::BPL() {
     bus.clock_cycles += 2;
     if (!(sr & flags::NEGATIVE))
-        pc = pc + (int16_t)bus.data() + 2;
+        pc = pc + (int16_t)bus.data();
 }
 
 void CPU6502::CLC() {
@@ -360,7 +360,7 @@ void CPU6502::PLP() {
 void CPU6502::BMI() {
     bus.clock_cycles += 2;
     if (sr & flags::NEGATIVE)
-        pc = pc + (int16_t)bus.data() + 2;
+        pc = pc + (int16_t)bus.data();
 }
 
 void CPU6502::SEC() {
@@ -465,25 +465,25 @@ void CPU6502::SED() {
 void CPU6502::BCC() {
     bus.clock_cycles += 2;
     if (!(sr & flags::CARRY))
-        pc = pc + (int16_t)bus.data() + 2;
+        pc = pc + (int16_t)bus.data();
 }
 
 void CPU6502::BCS() {
     bus.clock_cycles += 2;
     if (sr & flags::CARRY)
-        pc = pc + (int16_t)bus.data() + 2;
+        pc = pc + (int16_t)bus.data();
 }
 
 void CPU6502::BNE() {
     bus.clock_cycles += 2;
     if (!(sr & flags::ZERO))
-        pc = pc + (int16_t)bus.data() + 2;
+        pc = pc + (int16_t)bus.data();
 }
 
 void CPU6502::BEQ() {
     bus.clock_cycles += 2;
     if (sr & flags::ZERO)
-        pc = pc + (int16_t)bus.data() + 2;
+        pc = pc + (int16_t)bus.data();
 }
 
 void CPU6502::SAX() {
@@ -585,7 +585,7 @@ void CPU6502::ALR() {
 void CPU6502::BVC() {
     bus.clock_cycles += 2;
     if (!(sr & flags::OVERFLOW))
-        pc = pc + (int16_t)bus.data() + 2;
+        pc = pc + (int16_t)bus.data();
 }
 
 void CPU6502::CLI() {
@@ -608,7 +608,7 @@ void CPU6502::ARR() {
 void CPU6502::BVS() {
     bus.clock_cycles += 2;
     if (sr & flags::OVERFLOW)
-        pc = pc + (int16_t)bus.data() + 2;
+        pc = pc + (int16_t)bus.data();
 }
 
 void CPU6502::SEI() {
