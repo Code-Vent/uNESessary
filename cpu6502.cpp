@@ -1,0 +1,755 @@
+//
+// Created by Hamid on 2/28/2025.
+//
+
+#include "cpu6502.h"
+#include <cassert>
+
+
+CPU6502::Instruction CPU6502::lookupTable[16][16] = {
+        {&CPU6502::BRK, &CPU6502::ORA, &CPU6502::invalid, &CPU6502::SLO, &CPU6502::NOP, &CPU6502::ORA, &CPU6502::ASL, &CPU6502::SLO, &CPU6502::PHP, &CPU6502::ORA, &CPU6502::ASL, &CPU6502::ANC, &CPU6502::NOP, &CPU6502::ORA, &CPU6502::ASL, &CPU6502::SLO},
+        {&CPU6502::BPL, &CPU6502::ORA, &CPU6502::invalid, &CPU6502::SLO, &CPU6502::NOP, &CPU6502::ORA, &CPU6502::ASL, &CPU6502::SLO, &CPU6502::CLC, &CPU6502::ORA, &CPU6502::NOP, &CPU6502::SLO, &CPU6502::NOP, &CPU6502::ORA, &CPU6502::ASL, &CPU6502::SLO},
+        {&CPU6502::JSR, &CPU6502::AND, &CPU6502::invalid, &CPU6502::RLA, &CPU6502::BIT, &CPU6502::AND, &CPU6502::ROL, &CPU6502::RLA, &CPU6502::PLP, &CPU6502::AND, &CPU6502::ROL, &CPU6502::ANC, &CPU6502::BIT, &CPU6502::AND, &CPU6502::ROL, &CPU6502::RLA},
+        {&CPU6502::BMI, &CPU6502::AND, &CPU6502::invalid, &CPU6502::RLA, &CPU6502::NOP, &CPU6502::AND, &CPU6502::ROL, &CPU6502::RLA, &CPU6502::SEC, &CPU6502::AND, &CPU6502::NOP, &CPU6502::RLA, &CPU6502::NOP, &CPU6502::AND, &CPU6502::ROL, &CPU6502::RLA},
+        {&CPU6502::RTI, &CPU6502::EOR, &CPU6502::invalid, &CPU6502::SRE, &CPU6502::NOP, &CPU6502::EOR, &CPU6502::LSR, &CPU6502::SRE, &CPU6502::PHA, &CPU6502::EOR, &CPU6502::LSR, &CPU6502::ALR, &CPU6502::JMP, &CPU6502::EOR, &CPU6502::LSR, &CPU6502::SRE},
+        {&CPU6502::BVC, &CPU6502::EOR, &CPU6502::invalid, &CPU6502::SRE, &CPU6502::NOP, &CPU6502::EOR, &CPU6502::LSR, &CPU6502::SRE, &CPU6502::CLI, &CPU6502::EOR, &CPU6502::NOP, &CPU6502::SRE, &CPU6502::NOP, &CPU6502::EOR, &CPU6502::LSR, &CPU6502::SRE},
+        {&CPU6502::RTS, &CPU6502::ADC, &CPU6502::invalid, &CPU6502::RRA, &CPU6502::PLA, &CPU6502::ADC, &CPU6502::ROR, &CPU6502::ARR, &CPU6502::JMP, &CPU6502::ADC, &CPU6502::ROR, &CPU6502::RRA, &CPU6502::BVS, &CPU6502::ADC, &CPU6502::invalid, &CPU6502::RRA},
+        {&CPU6502::SEI, &CPU6502::ADC, &CPU6502::NOP, &CPU6502::RRA, &CPU6502::NOP, &CPU6502::ADC, &CPU6502::ROR, &CPU6502::RRA, &CPU6502::NOP, &CPU6502::ADC, &CPU6502::ROR, &CPU6502::RRA, &CPU6502::NOP, &CPU6502::ADC, &CPU6502::ROR, &CPU6502::RRA},
+        {&CPU6502::NOP, &CPU6502::STA, &CPU6502::NOP, &CPU6502::SAX, &CPU6502::STY, &CPU6502::STA, &CPU6502::STX, &CPU6502::SAX, &CPU6502::DEY, &CPU6502::NOP, &CPU6502::TXA, &CPU6502::NOP, &CPU6502::STY, &CPU6502::STA, &CPU6502::STX, &CPU6502::SAX},
+        {&CPU6502::BCC, &CPU6502::STA, &CPU6502::NOP, &CPU6502::AHX, &CPU6502::STY, &CPU6502::STA, &CPU6502::STX, &CPU6502::SAX, &CPU6502::TYA, &CPU6502::STA, &CPU6502::TXS, &CPU6502::TAS, &CPU6502::SHY, &CPU6502::STA, &CPU6502::SHX, &CPU6502::AHX},
+        {&CPU6502::LDY, &CPU6502::LDA, &CPU6502::LDX, &CPU6502::LAX, &CPU6502::LDY, &CPU6502::LDA, &CPU6502::LDX, &CPU6502::LAX, &CPU6502::TAY, &CPU6502::LDA, &CPU6502::TAX, &CPU6502::NOP, &CPU6502::LDY, &CPU6502::LDA, &CPU6502::LDX, &CPU6502::LAX},
+        {&CPU6502::BCS, &CPU6502::LDA, &CPU6502::NOP, &CPU6502::LAX, &CPU6502::LDY, &CPU6502::LDA, &CPU6502::LDX, &CPU6502::LAX, &CPU6502::CLV, &CPU6502::LDA, &CPU6502::TSX, &CPU6502::LAS, &CPU6502::LDY, &CPU6502::LDA, &CPU6502::LDX, &CPU6502::LAX},
+        {&CPU6502::CPY, &CPU6502::CMP, &CPU6502::NOP, &CPU6502::DCP, &CPU6502::CPY, &CPU6502::CMP, &CPU6502::DEC, &CPU6502::DCP, &CPU6502::INY, &CPU6502::CMP, &CPU6502::DEX, &CPU6502::AXS, &CPU6502::CPY, &CPU6502::CMP, &CPU6502::DEC, &CPU6502::DCP},
+        {&CPU6502::BNE, &CPU6502::CMP, &CPU6502::NOP, &CPU6502::DCP, &CPU6502::NOP, &CPU6502::CMP, &CPU6502::DEC, &CPU6502::DCP, &CPU6502::CLD, &CPU6502::CMP, &CPU6502::NOP, &CPU6502::DCP, &CPU6502::NOP, &CPU6502::CMP, &CPU6502::DEC, &CPU6502::DCP},
+        {&CPU6502::CPX, &CPU6502::SBC, &CPU6502::NOP, &CPU6502::ISB, &CPU6502::CPX, &CPU6502::SBC, &CPU6502::INC, &CPU6502::ISB, &CPU6502::INX, &CPU6502::SBC, &CPU6502::NOP, &CPU6502::SBC, &CPU6502::CPX, &CPU6502::SBC, &CPU6502::INC, &CPU6502::ISB},
+        {&CPU6502::BEQ, &CPU6502::SBC, &CPU6502::NOP, &CPU6502::ISB, &CPU6502::NOP, &CPU6502::SBC, &CPU6502::INC, &CPU6502::ISB, &CPU6502::SED, &CPU6502::SBC, &CPU6502::NOP, &CPU6502::ISB, &CPU6502::NOP, &CPU6502::SBC, &CPU6502::INC, &CPU6502::ISB}
+};
+
+#define a registers[a_index]
+#define x registers[x_index]
+#define y registers[y_index]
+#define sp registers[sp_index]
+#define sr registers[sr_index]
+
+CPU6502::CPU6502(Bus& main_bus, Memory&& r)
+        : ram(std::move(r)),
+        stack({.lower=0, .upper=0xFF}, 0x100),
+        registers({.lower=reg_base_addr, .upper=reg_base_addr+4}, 5),
+        bus(main_bus)
+{
+    bus.clock_cycles = 0;
+    a = 0; // Accumulator
+    x = 0; // X Register
+    y = 0; // Y Register
+    sr = 0; // Processor Status
+    sp = 0xFF; // Stack Pointer
+    pc = 0; // Program Counter
+    error = false;
+    bus.add(registers);
+    bus.add(ram);
+}
+
+uint8_t CPU6502::pop() {
+    if (sp < 0xff)
+        sp++;
+    return stack.read(sp);
+}
+
+void CPU6502::push(uint8_t data) {
+    stack.write(sp, data);
+    if (sp > 0)
+        sp--;
+}
+
+void CPU6502::push_pc() {
+    push((pc >> 8) & 0x00FF);
+    push(pc & 0x00FF);
+}
+
+void CPU6502::pop_pc() {
+    auto lo = pop();
+    auto hi = pop();
+    pc = (hi << 8) | lo;
+}
+
+void CPU6502::mod_zero(uint8_t result) {
+    sr = (result == 0)? sr | flags::ZERO : sr & ~flags::ZERO;
+}
+
+void CPU6502::mod_zero_neg_flags(uint8_t result) {
+    sr = (result == 0)? sr | flags::ZERO : sr & ~flags::ZERO;
+    sr = (result | 0x80)? sr | flags::NEGATIVE : sr & ~flags::NEGATIVE;
+}
+
+void CPU6502::mod_zero_neg_carry_flags(uint8_t result) {
+    sr = (result == 0)? sr | flags::ZERO : sr & ~flags::ZERO;
+    sr = (result | 0x80)? sr | flags::NEGATIVE : sr & ~flags::NEGATIVE;
+    sr = (sr | flags::NEGATIVE)? sr & ~flags::CARRY : sr | flags::CARRY;
+}
+
+void CPU6502::call_addr_mode(uint8_t opcode) {
+    //Addressing Mode
+    switch (opcode) {
+        // Accumulator
+        case 0x0A: // ASL
+        case 0x4A: // LSR
+        case 0x2A: // ROL
+        case 0x6A: // ROR
+            CPU6502::acc();
+            break;
+
+            // Immediate
+        case 0x09: case 0x29: case 0x49: case 0x69: case 0xA9: case 0xC9: case 0xE9:
+            CPU6502::imm();
+            break;
+
+            // Zero Page
+        case 0x05: case 0x25: case 0x45: case 0x65: case 0x85: case 0xA5: case 0xC5: case 0xE5:
+            CPU6502::zp0();
+            break;
+
+            // Zero Page,X
+        case 0x15: case 0x35: case 0x55: case 0x75: case 0x95: case 0xB5: case 0xD5: case 0xF5:
+            CPU6502::zpx();
+            break;
+
+            // Zero Page,Y
+        case 0x96: case 0xB6:
+            CPU6502::zpy();
+            break;
+
+            // Absolute
+            case 0x0D: case 0x2D: case 0x4D: case 0x6D: case 0x8D: case 0xAD: case 0xCD: case 0xED: case 0x4C:
+            CPU6502::abs();
+            break;
+
+            // Absolute,X
+        case 0x1D: case 0x3D: case 0x5D: case 0x7D: case 0x9D: case 0xBD: case 0xDD: case 0xFD:
+            CPU6502::abx();
+            break;
+
+            // Absolute,Y
+        case 0x19: case 0x39: case 0x59: case 0x79: case 0x99: case 0xB9: case 0xD9: case 0xF9:
+            CPU6502::aby();
+            break;
+
+            // Indirect
+        case 0x6C: // JMP (Indirect)
+            CPU6502::ind();
+            break;
+
+            // Indexed Indirect (Indirect,X)
+        case 0x01: case 0x21: case 0x41: case 0x61: case 0x81: case 0xA1: case 0xC1: case 0xE1:
+            CPU6502::x_ind();
+            break;
+
+            // Indirect Indexed (Indirect),Y
+        case 0x11: case 0x31: case 0x51: case 0x71: case 0x91: case 0xB1: case 0xD1: case 0xF1:
+            CPU6502::ind_y();
+            break;
+
+            // Relative
+        case 0x10: case 0x30: case 0x50: case 0x70: case 0x90: case 0xB0: case 0xD0: case 0xF0:
+            CPU6502::rel();
+            break;
+
+            // Implied
+        case 0x00: case 0x08: case 0x18: case 0x28: case 0x38: case 0x48: case 0x58: case 0x68:
+        case 0x78: case 0x88: case 0x98: case 0xA8: case 0xB8: case 0xC8: case 0xD8: case 0xE8:
+        case 0xF8: case 0xCA: case 0xEA: case 0xBA: case 0x8A: case 0xAA: case 0x9A:
+            CPU6502::imp();
+            break;
+
+            // Unknown opcode
+        default:
+            // Could log unknown opcode here
+            std::cerr << std::hex << "\nunknown opcode: " << (int)opcode << std::endl;
+            assert(false);
+            break;
+    }
+}
+
+bool CPU6502::execute() {
+    uint8_t opcode = bus.read(pc++);
+    bus.clock_cycles = 0;
+    call_addr_mode(opcode);
+    uint8_t row = (opcode & 0xF0) >> 4;
+    uint8_t col = (opcode & 0x0F);
+    (this->*lookupTable[row][col].instruction)();
+    return !error;
+}
+
+void CPU6502::reset() {
+    pc = (bus.read(0xFFFD) << 8) | bus.read(0xFFFC);
+    x = y = 0;
+    a = 0;
+    sr = flags::ALWAYS_HIGH | flags::INTERRUPT;
+    sp = 0xFF;
+    bus.latch_data(0);
+    error = false;
+}
+
+void CPU6502::x_ind() {
+    uint16_t t = bus.read(pc);
+    pc++;
+    uint16_t lo = bus.read((uint16_t)(t + (uint16_t)x) & 0x00FF);
+    uint16_t hi = bus.read((uint16_t)(t + (uint16_t)x + 1) & 0x00FF);
+    uint16_t addr_abs = (hi << 8) | lo;
+    bus.latch_data(addr_abs);
+}
+
+void CPU6502::imm() {
+    bus.latch_data(pc);
+    pc++;
+}
+
+void CPU6502::abs() {
+    bus.latch_address(pc);
+    pc += 2;
+    bus.latch_data();
+}
+
+void CPU6502::ind() {
+    bus.latch_address(pc);
+    pc += 2;
+    bus.latch_address();
+    //bus.latch_data();
+}
+
+void CPU6502::ind_y() {
+    uint16_t t = bus.read(pc);
+    pc++;
+    uint16_t lo = bus.read(t & 0x00FF);
+    uint16_t hi = bus.read((t + 1) & 0x00FF);
+
+    uint16_t addr_abs = (hi << 8) | lo;
+    addr_abs += y;
+
+    if ((addr_abs & 0xFF00) != (hi << 8))
+        bus.clock_cycles++;
+    bus.latch_data(addr_abs);
+}
+
+void CPU6502::zp0() {
+    uint16_t address = bus.read(pc);
+    bus.latch_data(address & 0x00FF);
+    pc++;
+}
+
+void CPU6502::zpx() {
+    uint16_t address = bus.read(pc) + x;
+    bus.latch_data(address & 0x00FF);
+    pc++;
+}
+
+void CPU6502::zpy() {
+    uint16_t address = bus.read(pc) + y;
+    bus.latch_data(address & 0x00FF);
+    pc++;
+}
+
+void CPU6502::aby() {
+    bus.latch_address(pc);
+    pc += 2;
+    bus.latch_data_rel(y);
+}
+
+void CPU6502::abx() {
+    bus.latch_address(pc);
+    pc += 2;
+    bus.latch_data_rel(x);
+}
+
+void CPU6502::rel() {
+    bus.latch_data(pc);
+    pc++;
+}
+
+void CPU6502::acc() {
+    bus.latch_data(reg_base_addr + a_index);
+}
+
+void CPU6502::imp() {
+
+}
+
+
+///////////////////////////////////////////////////////////////////////////
+
+
+void CPU6502::BRK() {
+    bus.clock_cycles += 7;
+    pc += 2;
+    push_pc();
+    push(sr);
+    sr |= flags::B | flags::INTERRUPT;
+    pc = (uint16_t)bus.read(0xFFFE) | ((uint16_t)bus.read(0xFFFF) << 8);
+}
+
+void CPU6502::ORA() {
+    bus.clock_cycles += 6;
+    a |= bus.data(); // Dummy ORA logic
+    mod_zero_neg_flags(a);
+}
+
+void CPU6502::invalid() {
+    bus.clock_cycles += 2; // Invalid Opcode
+}
+
+void CPU6502::SLO() {
+    bus.clock_cycles += 8;
+    uint8_t data = bus.data();
+    (data & 0x80)? sr |= flags::CARRY : sr &= ~flags::CARRY;
+    data <<= 1;
+    a |= data;
+    mod_zero_neg_flags(a);
+}
+
+void CPU6502::NOP() {
+    bus.clock_cycles += 2;
+}
+
+void CPU6502::ASL() {
+    bus.clock_cycles += 5;
+    sr |= ((uint8_t)(bus.data() >> 7) & flags::CARRY);
+    uint8_t data = bus.data() << 1;
+    mod_zero_neg_flags(data);
+    bus.write(data);
+}
+
+void CPU6502::PHP() {
+    bus.clock_cycles += 3;
+    push(sr);
+}
+
+void CPU6502::ANC() {
+    bus.clock_cycles += 2;
+    a &= bus.data();
+    sr = (a == 0x80) ? sr | flags::CARRY : sr & ~flags::CARRY;
+}
+
+void CPU6502::BPL() {
+    bus.clock_cycles += 2;
+    if (!(sr & flags::NEGATIVE))
+        pc = pc + (int16_t)bus.data() + 2;
+}
+
+void CPU6502::CLC() {
+    bus.clock_cycles += 2;
+    sr &= ~flags::CARRY;
+}
+
+void CPU6502::JSR() {
+    bus.clock_cycles += 6;
+    pc--;
+    push_pc();
+    pc = bus.address();
+}
+
+void CPU6502::AND() {
+    bus.clock_cycles += 6;
+    a &= (bus.data() & 0x00FF);
+    mod_zero_neg_flags(a);
+}
+
+void CPU6502::PLP() {
+    bus.clock_cycles += 4;
+    sr = pop();
+}
+
+void CPU6502::BMI() {
+    bus.clock_cycles += 2;
+    if (sr & flags::NEGATIVE)
+        pc = pc + (int16_t)bus.data() + 2;
+}
+
+void CPU6502::SEC() {
+    bus.clock_cycles += 2;
+    sr |= flags::CARRY;
+}
+
+void CPU6502::RTI() {
+    bus.clock_cycles += 6;
+    sr = pop();
+    pop_pc();
+}
+
+void CPU6502::EOR() {
+    bus.clock_cycles += 6;
+    a ^= bus.data();
+    mod_zero_neg_flags(a);
+}
+
+void CPU6502::PHA() {
+    bus.clock_cycles += 3;
+    push(a);
+}
+
+void CPU6502::LSR() {
+    bus.clock_cycles += 5;
+    sr &= ~flags::CARRY;
+    sr ^= (bus.data() & flags::CARRY);
+    auto temp = bus.data() >> 1;
+    mod_zero_neg_flags(temp);
+    bus.write(temp);
+}
+
+void CPU6502::JMP() {
+    bus.clock_cycles += 3;
+    pc = bus.address();
+}
+
+void CPU6502::RTS() {
+    bus.clock_cycles += 6;
+    pop_pc();
+    pc++;
+}
+
+void CPU6502::ADC() {
+    bus.clock_cycles += 6;
+    uint8_t carry = (sr & flags::CARRY);
+    uint16_t result = a + bus.data() + carry;
+    if (result > 0xFF) sr |= flags::CARRY;
+    if ((result ^ a) & (result ^ bus.data()) & 0x80) sr |= flags::OVERFLOW;
+    mod_zero_neg_flags(result);
+    a = (uint8_t)result;
+}
+
+void CPU6502::PLA() {
+    bus.clock_cycles += 4;
+    a = pop();
+    mod_zero_neg_flags(a);
+}
+
+void CPU6502::ROR() {
+    bus.clock_cycles += 5;
+    uint16_t temp = (uint16_t)bus.data() & 0xFEFF;
+    temp ^= ((sr & flags::CARRY) << 8);
+    sr &= ~flags::CARRY;
+    sr ^= (temp & flags::CARRY);
+    temp >> 1;
+    bus.write(temp & 0x00FF);
+    mod_zero_neg_flags(temp & 0x00FF);
+}
+
+void CPU6502::STA() {
+    bus.clock_cycles += 6;
+    // Store accumulator to memory
+    bus.write(a);
+}
+
+void CPU6502::LDA() {
+    bus.clock_cycles += 6;
+    a = bus.data();
+    mod_zero_neg_flags(a);
+}
+
+void CPU6502::CMP() {
+    bus.clock_cycles += 6;
+    uint8_t result = a - bus.data();
+    mod_zero_neg_carry_flags(result);
+}
+
+void CPU6502::INC() {
+    bus.clock_cycles += 6;
+    bus.inc();
+    mod_zero_neg_flags(bus.data());
+    bus.write();
+}
+
+void CPU6502::SED() {
+    bus.clock_cycles += 2;
+    sr |= flags::DECIMAL;
+}
+
+void CPU6502::BCC() {
+    bus.clock_cycles += 2;
+    if (!(sr & flags::CARRY))
+        pc = pc + (int16_t)bus.data() + 2;
+}
+
+void CPU6502::BCS() {
+    bus.clock_cycles += 2;
+    if (sr & flags::CARRY)
+        pc = pc + (int16_t)bus.data() + 2;
+}
+
+void CPU6502::BNE() {
+    bus.clock_cycles += 2;
+    if (!(sr & flags::ZERO))
+        pc = pc + (int16_t)bus.data() + 2;
+}
+
+void CPU6502::BEQ() {
+    bus.clock_cycles += 2;
+    if (sr & flags::ZERO)
+        pc = pc + (int16_t)bus.data() + 2;
+}
+
+void CPU6502::SAX() {
+    bus.clock_cycles += 4;
+    a &= x;
+    bus.write(a);
+}
+
+void CPU6502::AHX() {
+    bus.clock_cycles += 4;
+    uint8_t result = a & x & (pc >> 8);
+    bus.write(result);
+}
+
+void CPU6502::LAX() {
+    bus.clock_cycles += 4;
+    a = x = bus.data();
+    mod_zero_neg_flags(a);
+}
+
+void CPU6502::DCP() {
+    bus.clock_cycles += 6;
+    bus.dec();
+    CMP();
+}
+
+void CPU6502::ISB() {
+    bus.clock_cycles += 6;
+    bus.inc();
+    SBC();
+}
+
+void CPU6502::TAS() {
+    bus.clock_cycles += 4;
+    sp = a & x & (pc >> 8);
+    bus.write(sp);
+}
+
+void CPU6502::LAS() {
+    bus.clock_cycles += 4;
+    a = x = sp &= bus.data();
+    mod_zero_neg_flags(a);
+}
+
+void CPU6502::AXS() {
+    bus.clock_cycles += 4;
+    x &= a;
+    x -= bus.data();
+    mod_zero_neg_carry_flags(x);
+}
+
+void CPU6502::SHY() {
+    bus.clock_cycles += 4;
+    uint8_t result = y & ((pc >> 8) + 1);
+    bus.write(result);
+}
+
+void CPU6502::SHX() {
+    bus.clock_cycles += 4;
+    uint8_t result = x & ((pc >> 8) + 1);
+    bus.write(result);
+}
+
+void CPU6502::RLA() {
+    bus.clock_cycles += 8;
+    ROL();
+    AND();
+}
+
+void CPU6502::BIT() {
+    bus.clock_cycles += 3;
+    uint8_t result = a & bus.data();
+    mod_zero(result);
+    sr |= (bus.data() & flags::OVERFLOW & flags::NEGATIVE);
+}
+
+void CPU6502::ROL() {
+    bus.clock_cycles += 2;
+    uint16_t temp = (uint16_t)bus.data() << 1;
+    temp ^= (sr & flags::CARRY);
+    sr &= ~flags::CARRY;
+    sr ^= ((temp >> 8) & flags::CARRY);
+    bus.write(temp & 0x00FF);
+    mod_zero_neg_flags(temp & 0x00FF);
+}
+
+void CPU6502::SRE() {
+    bus.clock_cycles += 8;
+    LSR();
+    EOR();
+}
+
+void CPU6502::ALR() {
+    bus.clock_cycles += 2;
+    AND();
+    LSR();
+}
+
+void CPU6502::BVC() {
+    bus.clock_cycles += 2;
+    if (!(sr & flags::OVERFLOW))
+        pc = pc + (int16_t)bus.data() + 2;
+}
+
+void CPU6502::CLI() {
+    bus.clock_cycles += 2;
+    sr &= ~flags::INTERRUPT;
+}
+
+void CPU6502::RRA() {
+    bus.clock_cycles += 8;
+    ROR();
+    ADC();
+}
+
+void CPU6502::ARR() {
+    bus.clock_cycles += 2;
+    AND();
+    ROR();
+}
+
+void CPU6502::BVS() {
+    bus.clock_cycles += 2;
+    if (sr & flags::OVERFLOW)
+        pc = pc + (int16_t)bus.data() + 2;
+}
+
+void CPU6502::SEI() {
+    bus.clock_cycles += 2;
+    sr |= 0x04;
+}
+
+void CPU6502::STY() {
+    bus.clock_cycles += 3;
+    // Store Y register to memory
+    bus.write(y);
+}
+
+void CPU6502::STX() {
+    bus.clock_cycles += 3;
+    // Store X register to memory
+    bus.write(x);
+}
+
+void CPU6502::DEY() {
+    bus.clock_cycles += 2;
+    y--;
+    mod_zero_neg_flags(y);
+}
+
+void CPU6502::TXA() {
+    bus.clock_cycles += 2;
+    a = x;
+    mod_zero_neg_flags(a);
+}
+
+void CPU6502::TYA() {
+    bus.clock_cycles += 2;
+    a = y;
+    mod_zero_neg_flags(a);
+}
+
+void CPU6502::TXS() {
+    bus.clock_cycles += 2;
+    sp = x;
+}
+
+void CPU6502::LDY() {
+    bus.clock_cycles += 3;
+    y = bus.data();
+    mod_zero_neg_flags(y);
+}
+
+void CPU6502::LDX() {
+    bus.clock_cycles += 3;
+    x = bus.data();
+    mod_zero_neg_flags(x);
+}
+
+void CPU6502::TAX() {
+    bus.clock_cycles += 2;
+    x = a;
+    mod_zero_neg_flags(x);
+}
+
+void CPU6502::TAY() {
+    bus.clock_cycles += 2;
+    y = a;
+    mod_zero_neg_flags(y);
+}
+
+void CPU6502::CLV() {
+    bus.clock_cycles += 2;
+    sr &= ~flags::OVERFLOW;
+}
+
+void CPU6502::TSX() {
+    bus.clock_cycles += 2;
+    x = sp;
+    mod_zero_neg_flags(x);
+}
+
+void CPU6502::DEC() {
+    bus.clock_cycles += 6;
+    bus.dec();
+    mod_zero_neg_flags(bus.data());
+    bus.write();
+}
+
+void CPU6502::INY() {
+    bus.clock_cycles += 2;
+    y++;
+    mod_zero_neg_flags(y);
+}
+
+void CPU6502::DEX() {
+    bus.clock_cycles += 2;
+    x--;
+    mod_zero_neg_flags(x);
+}
+
+void CPU6502::CLD() {
+    bus.clock_cycles += 2;
+    sr &= ~flags::DECIMAL;
+}
+
+void CPU6502::INX() {
+    bus.clock_cycles += 2;
+    x++;
+    mod_zero_neg_flags(x);
+}
+
+void CPU6502::CPY() {
+    bus.clock_cycles += 2;
+    uint8_t result = y - bus.data();
+    mod_zero_neg_carry_flags(result);
+}
+
+void CPU6502::CPX() {
+    bus.clock_cycles += 2;
+    uint8_t result = x - bus.data();
+    mod_zero_neg_carry_flags(result);
+}
+
+void CPU6502::SBC() {
+    bus.clock_cycles += 2;
+    uint8_t val = ~bus.data();
+    uint8_t result = a + val + (sr & flags::CARRY);
+    if ((int8_t)a < 0)sr |= flags::CARRY;
+    if (a & 0x80)sr |= flags::NEGATIVE;
+    if (a == 0)sr |= flags::ZERO;
+    if ((result ^ a) & (result ^ val) & 0x80)sr |= flags::OVERFLOW;
+    a = result;
+}
+
+std::ostream& operator<<(std::ostream& os, const CPU6502& cpu){
+    os << "**************************************\n";
+    os << std::hex << "PC = " << cpu.pc << std::endl
+       << "A = " << (int)cpu.registers[a_index] << std::endl
+       << "X = " << (int)cpu.registers[x_index] << std::endl
+       << "Y = " << (int)cpu.registers[y_index] << std::endl
+       << "SR = " << (int)cpu.registers[sr_index] << std::endl
+       << "SP = " << (int)cpu.registers[sp_index] << std::endl;
+    os << "**************************************\n";
+    return os;
+}
+
+
+
