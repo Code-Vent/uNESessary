@@ -11,7 +11,6 @@
 
 class Memory : public Peripheral {
     std::vector<uint8_t> bytes;
-    uint16_t address_mask;
 public:
     Memory(Range address, uint16_t size, uint16_t address_mask=0xFFFF);
     int8_t read(uint16_t address) override;

@@ -6,17 +6,16 @@
 
 
 Memory::Memory(Range address, uint16_t size, uint16_t mask)
-        : Peripheral(address), bytes(size, 0)
+        : Peripheral(address, mask), bytes(size, 0)
 {
-    address_mask = mask;
 }
 
 int8_t Memory::read(uint16_t address) {
-    return bytes.at((start_address - address)&address_mask);
+    return bytes.at(index(address));
 }
 
 void Memory::write(uint16_t address, uint8_t data) {
-    bytes.at((start_address - address)&address_mask) = data;
+    bytes.at(index(address)) = data;
 }
 
 uint8_t& Memory::operator[](int index)
