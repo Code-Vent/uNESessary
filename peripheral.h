@@ -17,7 +17,7 @@ protected:
 public:
     Peripheral(Range address);
     virtual void write(uint16_t address, uint8_t data) {}
-    virtual uint8_t read(uint16_t address) { return 0; }
+    virtual int8_t read(uint16_t address) { return 0; }
     bool containsAddress(uint16_t address);
 };
 

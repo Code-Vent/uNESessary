@@ -57,9 +57,9 @@ public:
     void acc();
     void imp();
     void call_addr_mode(uint8_t opcode);
-    void mod_zero_neg_flags(uint8_t result);
-    void mod_zero_neg_carry_flags(uint8_t result);
-    void mod_zero(uint8_t result);
+    void mod_zero_neg_flags(int8_t result);
+    void mod_zero_neg_carry_flags(int8_t result);
+    void mod_zero(int8_t result);
     //////////////ADRESSING MODES//////////////////////////////
     void push(uint8_t data);
     uint8_t pop();

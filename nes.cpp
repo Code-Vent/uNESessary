@@ -22,9 +22,9 @@ void Nes::cpu_test() {
     main_bus.write(0x0002, 0x8d);
     main_bus.write(0x0003, 0x00);
     main_bus.write(0x0004, 0x02);
-    main_bus.write(0x0005, 0x4c);
-    main_bus.write(0x0006, 0x00);
-    main_bus.write(0x0007, 0x00);
+    main_bus.write(0x0005, 0xD0);//BNE
+    main_bus.write(0x0006, (std::uint8_t)-7);
+    //main_bus.write(0x0007, 0x00);
 
     cpu.reset();
     while (cpu.execute() && main_bus.no_error()) {

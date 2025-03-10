@@ -39,7 +39,7 @@ void Bus::write() {
     write(last_address, last_data);
 }
 
-uint8_t Bus::read(uint16_t address) {
+int8_t Bus::read(uint16_t address) {
     auto p = find(address);
     if (p != nullptr)
         return p->read(address);
@@ -49,7 +49,7 @@ uint8_t Bus::read(uint16_t address) {
     return 0;
 }
 
-uint8_t Bus::read() {
+int8_t Bus::read() {
     return read(last_address);
 }
 
@@ -82,6 +82,13 @@ void Bus::latch_address(uint16_t address) {
         clock_cycles++;
 }
 
+void Bus::set_address_rel(uint16_t base) {
+    auto addr = base + last_data;
+    if((addr & 0xFF00) != (base & 0xFF00))
+        clock_cycles++;
+    last_address = addr & 0xFFFF;
+}
+
 void Bus::latch_data_rel(uint8_t rel) {
     latch_data(last_address + rel);
 }
@@ -94,11 +101,11 @@ void Bus::latch_data() {
     latch_data(last_address);
 }
 
-uint8_t Bus::inc() {
+int8_t Bus::inc() {
     return ++last_data;
 }
 
-uint8_t Bus::dec() {
+int8_t Bus::dec() {
     return --last_data;
 }
 

@@ -11,7 +11,7 @@ Memory::Memory(Range address, uint16_t size, uint16_t mask)
     address_mask = mask;
 }
 
-uint8_t Memory::read(uint16_t address) {
+int8_t Memory::read(uint16_t address) {
     return bytes.at((start_address - address)&address_mask);
 }
 

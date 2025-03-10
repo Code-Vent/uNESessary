@@ -72,16 +72,16 @@ void CPU6502::pop_pc() {
     pc = (hi << 8) | lo;
 }
 
-void CPU6502::mod_zero(uint8_t result) {
+void CPU6502::mod_zero(int8_t result) {
     sr = (result == 0)? sr | flags::ZERO : sr & ~flags::ZERO;
 }
 
-void CPU6502::mod_zero_neg_flags(uint8_t result) {
+void CPU6502::mod_zero_neg_flags(int8_t result) {
     sr = (result == 0)? sr | flags::ZERO : sr & ~flags::ZERO;
     sr = (result | 0x80)? sr | flags::NEGATIVE : sr & ~flags::NEGATIVE;
 }
 
-void CPU6502::mod_zero_neg_carry_flags(uint8_t result) {
+void CPU6502::mod_zero_neg_carry_flags(int8_t result) {
     sr = (result == 0)? sr | flags::ZERO : sr & ~flags::ZERO;
     sr = (result | 0x80)? sr | flags::NEGATIVE : sr & ~flags::NEGATIVE;
     sr = (sr | flags::NEGATIVE)? sr & ~flags::CARRY : sr | flags::CARRY;
@@ -298,7 +298,7 @@ void CPU6502::invalid() {
 
 void CPU6502::SLO() {
     bus.clock_cycles += 8;
-    uint8_t data = bus.data();
+    auto data = bus.data();
     (data & 0x80)? sr |= flags::CARRY : sr &= ~flags::CARRY;
     data <<= 1;
     a |= data;
@@ -312,7 +312,7 @@ void CPU6502::NOP() {
 void CPU6502::ASL() {
     bus.clock_cycles += 5;
     sr |= ((uint8_t)(bus.data() >> 7) & flags::CARRY);
-    uint8_t data = bus.data() << 1;
+    auto data = bus.data() << 1;
     mod_zero_neg_flags(data);
     bus.write(data);
 }
@@ -330,8 +330,9 @@ void CPU6502::ANC() {
 
 void CPU6502::BPL() {
     bus.clock_cycles += 2;
+    bus.set_address_rel(pc);
     if (!(sr & flags::NEGATIVE))
-        pc = pc + (int16_t)bus.data();
+        pc = bus.address();
 }
 
 void CPU6502::CLC() {
@@ -359,8 +360,9 @@ void CPU6502::PLP() {
 
 void CPU6502::BMI() {
     bus.clock_cycles += 2;
+    bus.set_address_rel(pc);
     if (sr & flags::NEGATIVE)
-        pc = pc + (int16_t)bus.data();
+        pc = bus.address();
 }
 
 void CPU6502::SEC() {
@@ -408,11 +410,11 @@ void CPU6502::RTS() {
 void CPU6502::ADC() {
     bus.clock_cycles += 6;
     uint8_t carry = (sr & flags::CARRY);
-    uint16_t result = a + bus.data() + carry;
+    auto result = a + bus.data() + carry;
     if (result > 0xFF) sr |= flags::CARRY;
     if ((result ^ a) & (result ^ bus.data()) & 0x80) sr |= flags::OVERFLOW;
     mod_zero_neg_flags(result);
-    a = (uint8_t)result;
+    a = result;
 }
 
 void CPU6502::PLA() {
@@ -423,7 +425,7 @@ void CPU6502::PLA() {
 
 void CPU6502::ROR() {
     bus.clock_cycles += 5;
-    uint16_t temp = (uint16_t)bus.data() & 0xFEFF;
+    auto temp = bus.data() & 0xFEFF;
     temp ^= ((sr & flags::CARRY) << 8);
     sr &= ~flags::CARRY;
     sr ^= (temp & flags::CARRY);
@@ -446,7 +448,7 @@ void CPU6502::LDA() {
 
 void CPU6502::CMP() {
     bus.clock_cycles += 6;
-    uint8_t result = a - bus.data();
+    auto result = a - bus.data();
     mod_zero_neg_carry_flags(result);
 }
 
@@ -464,26 +466,30 @@ void CPU6502::SED() {
 
 void CPU6502::BCC() {
     bus.clock_cycles += 2;
+    bus.set_address_rel(pc);
     if (!(sr & flags::CARRY))
-        pc = pc + (int16_t)bus.data();
+        pc = bus.address();
 }
 
 void CPU6502::BCS() {
     bus.clock_cycles += 2;
+    bus.set_address_rel(pc);
     if (sr & flags::CARRY)
-        pc = pc + (int16_t)bus.data();
+        pc = bus.address();
 }
 
 void CPU6502::BNE() {
     bus.clock_cycles += 2;
+    bus.set_address_rel(pc);
     if (!(sr & flags::ZERO))
-        pc = pc + (int16_t)bus.data();
+        pc = bus.address();
 }
 
 void CPU6502::BEQ() {
     bus.clock_cycles += 2;
+    bus.set_address_rel(pc);
     if (sr & flags::ZERO)
-        pc = pc + (int16_t)bus.data();
+        pc = bus.address();
 }
 
 void CPU6502::SAX() {
@@ -555,14 +561,14 @@ void CPU6502::RLA() {
 
 void CPU6502::BIT() {
     bus.clock_cycles += 3;
-    uint8_t result = a & bus.data();
+    auto result = a & bus.data();
     mod_zero(result);
     sr |= (bus.data() & flags::OVERFLOW & flags::NEGATIVE);
 }
 
 void CPU6502::ROL() {
     bus.clock_cycles += 2;
-    uint16_t temp = (uint16_t)bus.data() << 1;
+    auto temp = (uint16_t)bus.data() << 1;
     temp ^= (sr & flags::CARRY);
     sr &= ~flags::CARRY;
     sr ^= ((temp >> 8) & flags::CARRY);
@@ -584,8 +590,9 @@ void CPU6502::ALR() {
 
 void CPU6502::BVC() {
     bus.clock_cycles += 2;
+    bus.set_address_rel(pc);
     if (!(sr & flags::OVERFLOW))
-        pc = pc + (int16_t)bus.data();
+        pc = bus.address();
 }
 
 void CPU6502::CLI() {
@@ -607,8 +614,9 @@ void CPU6502::ARR() {
 
 void CPU6502::BVS() {
     bus.clock_cycles += 2;
+    bus.set_address_rel(pc);
     if (sr & flags::OVERFLOW)
-        pc = pc + (int16_t)bus.data();
+        pc = bus.address();
 }
 
 void CPU6502::SEI() {
@@ -718,20 +726,20 @@ void CPU6502::INX() {
 
 void CPU6502::CPY() {
     bus.clock_cycles += 2;
-    uint8_t result = y - bus.data();
+    auto result = y - bus.data();
     mod_zero_neg_carry_flags(result);
 }
 
 void CPU6502::CPX() {
     bus.clock_cycles += 2;
-    uint8_t result = x - bus.data();
+    auto result = x - bus.data();
     mod_zero_neg_carry_flags(result);
 }
 
 void CPU6502::SBC() {
     bus.clock_cycles += 2;
-    uint8_t val = ~bus.data();
-    uint8_t result = a + val + (sr & flags::CARRY);
+    auto val = ~bus.data();
+    auto result = a + val + (sr & flags::CARRY);
     if ((int8_t)a < 0)sr |= flags::CARRY;
     if (a & 0x80)sr |= flags::NEGATIVE;
     if (a == 0)sr |= flags::ZERO;

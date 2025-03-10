@@ -37,7 +37,7 @@ public:
 
     }
 
-    uint8_t read(uint16_t address) override{
+    int8_t read(uint16_t address) override{
         return 0;
     }
 };
@@ -52,7 +52,7 @@ public:
 
     }
 
-    uint8_t read(uint16_t address) override{
+    int8_t read(uint16_t address) override{
         return 0;
     }
 };

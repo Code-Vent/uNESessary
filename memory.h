@@ -14,7 +14,7 @@ class Memory : public Peripheral {
     uint16_t address_mask;
 public:
     Memory(Range address, uint16_t size, uint16_t address_mask=0xFFFF);
-    uint8_t read(uint16_t address) override;
+    int8_t read(uint16_t address) override;
     void write(uint16_t address, uint8_t data) override;
     uint8_t& operator[](int index);
     uint8_t operator[](int index) const;
