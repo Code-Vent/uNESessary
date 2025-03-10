@@ -66,6 +66,11 @@ void CPU6502::push_pc() {
     push(pc & 0x00FF);
 }
 
+void CPU6502::branch() {
+    bus.set_address_rel(pc);
+    pc = bus.address();
+}
+
 void CPU6502::pop_pc() {
     auto lo = pop();
     auto hi = pop();
@@ -330,9 +335,8 @@ void CPU6502::ANC() {
 
 void CPU6502::BPL() {
     bus.clock_cycles += 2;
-    bus.set_address_rel(pc);
     if (!(sr & flags::NEGATIVE))
-        pc = bus.address();
+        branch();
 }
 
 void CPU6502::CLC() {
@@ -360,9 +364,8 @@ void CPU6502::PLP() {
 
 void CPU6502::BMI() {
     bus.clock_cycles += 2;
-    bus.set_address_rel(pc);
     if (sr & flags::NEGATIVE)
-        pc = bus.address();
+        branch();
 }
 
 void CPU6502::SEC() {
@@ -466,30 +469,26 @@ void CPU6502::SED() {
 
 void CPU6502::BCC() {
     bus.clock_cycles += 2;
-    bus.set_address_rel(pc);
     if (!(sr & flags::CARRY))
-        pc = bus.address();
+        branch();
 }
 
 void CPU6502::BCS() {
     bus.clock_cycles += 2;
-    bus.set_address_rel(pc);
     if (sr & flags::CARRY)
-        pc = bus.address();
+        branch();
 }
 
 void CPU6502::BNE() {
     bus.clock_cycles += 2;
-    bus.set_address_rel(pc);
     if (!(sr & flags::ZERO))
-        pc = bus.address();
+        branch();
 }
 
 void CPU6502::BEQ() {
     bus.clock_cycles += 2;
-    bus.set_address_rel(pc);
     if (sr & flags::ZERO)
-        pc = bus.address();
+        branch();
 }
 
 void CPU6502::SAX() {
@@ -590,9 +589,8 @@ void CPU6502::ALR() {
 
 void CPU6502::BVC() {
     bus.clock_cycles += 2;
-    bus.set_address_rel(pc);
     if (!(sr & flags::OVERFLOW))
-        pc = bus.address();
+        branch();
 }
 
 void CPU6502::CLI() {
@@ -614,9 +612,8 @@ void CPU6502::ARR() {
 
 void CPU6502::BVS() {
     bus.clock_cycles += 2;
-    bus.set_address_rel(pc);
     if (sr & flags::OVERFLOW)
-        pc = bus.address();
+        branch();
 }
 
 void CPU6502::SEI() {

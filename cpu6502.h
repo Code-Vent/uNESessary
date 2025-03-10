@@ -65,6 +65,7 @@ public:
     uint8_t pop();
     void push_pc();
     void pop_pc();
+    void branch();
     /////////////INSTRUCTIONS///////////////////////////////////
     void BRK();
     void ORA();
